@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Bản đồ OpenStreetMap + Dự báo thời tiết</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; }
+  </style>
+</head>
+<body>
+  <h3>Demo dự báo thời tiết (3 giờ tới) trên bản đồ</h3>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Khởi tạo bản đồ
+    var map = L.map('map').setView([10.7769, 106.7009], 11);
+
+    // Nền bản đồ
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    // API Key của bạn
+    const apiKey = "81a77eb1588623119bb56b1cf6844c38";
+
+    // Hàm lấy dự báo 3 giờ tới
+    async function getForecast(lat, lon) {
+      const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=vi`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("API lỗi");
+        const data = await res.json();
+
+        // Lấy block đầu tiên (3 giờ tới)
+        const forecast = data.list[0];
+        const temp = forecast.main.temp;
+        const weather = forecast.weather[0].description;
+        const icon = forecast.weather[0].icon;
+
+        // Xử lý thời gian UTC → giờ Việt Nam
+        const timeUTC = new Date(forecast.dt * 1000); // forecast.dt là Unix timestamp
+        const timeVN = new Date(timeUTC.getTime() + 2 * 60 * 60 * 1000 );
+        const timeStr = timeVN.toLocaleString("vi-VN", { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: 'numeric' 
+        });
+
+        // Tạo marker + popup
+        L.marker([lat, lon]).addTo(map)
+          .bindPopup(`
+            <b>Dự báo sau 3 giờ:</b><br>
+            ${timeStr}<br>
+            Nhiệt độ: ${temp}°C<br>
+            Thời tiết: ${weather}<br>
+            <img src="http://openweathermap.org/img/wn/${icon}@2x.png">
+          `)
+          .openPopup();
+      } catch (err) {
+        alert("Không lấy được dữ liệu dự báo: " + err);
+      }
+    }
+
+    // Hiện dự báo mặc định ở TP.HCM
+    getForecast(10.7769, 106.7009);
+
+    // Cho phép click vào bản đồ để xem dự báo 3h tới tại vị trí đó
+    map.on('click', function(e) {
+      const { lat, lng } = e.latlng;
+      getForecast(lat, lng);
+    });
+  </script>
+</body>
+</html>
